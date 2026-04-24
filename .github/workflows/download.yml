@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write   # اجازه‌ی push روی ریپو
+      contents: write
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4  # نسخه v4 هنوز هم کار می‌کند ولی اگر مشکل داشتی می‌توانی به v5 آپدیت کنی
         with:
-          persist-credentials: true   # از GITHUB_TOKEN برای push استفاده کند
-          fetch-depth: 0              # تاریخچه کامل برای جلوگیری از مشکل ری‌بیس
+          persist-credentials: true
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -45,12 +45,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # فقط اگر فولدر images وجود داشت ادامه بده
           if [ -d "images" ]; then
             git add images || true
           fi
 
-          # اگر چیزی برای کامیت نیست، خارج شو
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
@@ -58,4 +56,3 @@ jobs:
 
           git commit -m "Downloaded images via GitHub Actions"
           git push origin HEAD:${GITHUB_REF_NAME}
-
