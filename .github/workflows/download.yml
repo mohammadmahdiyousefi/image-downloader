@@ -1,58 +1,55 @@
 name: Download Images
 
 on:
+  # اجرای دستی از طریق Actions tab
   workflow_dispatch:
+    inputs:
+      links_file:
+        description: 'نام فایل حاوی لینک‌ها (پیش‌فرض links.txt)'
+        required: false
+        default: 'links.txt'
+  # یا به ازای هر push روی main که فایل links.txt تغییر کند
+  push:
+    paths:
+      - 'links.txt'
+    branches:
+      - main
 
 jobs:
   download:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: write
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4  # نسخه v4 هنوز هم کار می‌کند ولی اگر مشکل داشتی می‌توانی به v5 آپدیت کنی
-        with:
-          persist-credentials: true
-          fetch-depth: 0
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install requests
 
-      - name: Run downloader
+      - name: Run download script
         run: python download_images.py
-
-      - name: Show git status (for debug)
-        run: |
-          echo "Current branch:"
-          git branch
-          echo "Git status:"
-          git status
-          echo "Changed files:"
-          git diff --name-only || true
-
-      - name: Commit & Push results
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # در صورت نیاز به متغیر محیطی (مثلاً برای User-Agent خاص) می‌توانید تنظیم کنید
+          USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
-          if [ -d "images" ]; then
-            git add images || true
-          fi
+      - name: Upload images as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: downloaded-images
+          path: images/
+          if-no-files-found: warn
 
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-            exit 0
-          fi
-
-          git commit -m "Downloaded images via GitHub Actions"
-          git push origin HEAD:${GITHUB_REF_NAME}
+      - name: Upload failed links log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-log
+          path: failed.txt
+          if-no-files-found: ignore
