@@ -2,34 +2,59 @@ name: Download Images
 
 on:
   workflow_dispatch:
-  push:
-    paths: ['links.txt']
 
 jobs:
   download:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write   # اجازه‌ی push روی ریپو
+
     steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-python@v5
+      - name: Checkout repo
+        uses: actions/checkout@v4
         with:
-          python-version: '3.10'
-      
-      - name: Install requests
-        run: pip install requests
-      
+          persist-credentials: true   # از GITHUB_TOKEN برای push استفاده کند
+          fetch-depth: 0              # تاریخچه کامل برای جلوگیری از مشکل ری‌بیس
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
       - name: Run downloader
         run: python download_images.py
-      
-      - name: Upload images
-        uses: actions/upload-artifact@v4
-        with:
-          name: images
-          path: images/
-      
-      - name: Upload failed list
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: failed-links
-          path: failed.txt
+
+      - name: Show git status (for debug)
+        run: |
+          echo "Current branch:"
+          git branch
+          echo "Git status:"
+          git status
+          echo "Changed files:"
+          git diff --name-only || true
+
+      - name: Commit & Push results
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # فقط اگر فولدر images وجود داشت ادامه بده
+          if [ -d "images" ]; then
+            git add images || true
+          fi
+
+          # اگر چیزی برای کامیت نیست، خارج شو
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Downloaded images via GitHub Actions"
+          git push origin HEAD:${GITHUB_REF_NAME}
